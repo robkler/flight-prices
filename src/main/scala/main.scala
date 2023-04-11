@@ -8,6 +8,7 @@ object main extends App {
   val fileName = "itineraries.csv"
   val spark = SparkSession.builder.appName("Simple Application")
     .config("spark.master", "local[*]")
+    .config("spark.driver.maxResultSize", "5g")
     .getOrCreate()
   spark.sparkContext.setLogLevel("ERROR")
 
@@ -53,24 +54,17 @@ object main extends App {
   )
   equipamentDescription.orderBy(desc("count")).show(false)
 
-  //airports
-  val startingAirport = groupByFlight.groupBy("startingAirport").agg(
-    avg("avgTotalFare").as("avgTotalFare"),
-    sum("sumTotalFare").as("sumTotalFare"),
-    sum("count").as("count"),
-    avg("seatsRemaining").as("avgSeatsRemaining"),
-    avg("totalTravelDistance").as("avgTotalTravelDistance"),
-    sum("totalTravelDistance").as("TotalTravelDistance"),
-    avg("duration").as("avgTravelDuration"),
-    sum("duration").as("totalTravelDuration"),
-  )
-  startingAirport.orderBy(desc("count")).show(false)
-
-  val correlations = df.select(corr("totalFare", "diff_search_flight_date"), corr("totalFare", "totalTravelDistance"))
-  df.select("totalFare", "diff_search_flight_date").orderBy(desc("totalFare")).show(false)
-
-  println("Correlações entre pares de colunas:")
-  correlations.show()
+  println("Number of total fare nulls " + df.filter(col("totalFare").isNull).count())
+  val minTotalFare = df.select(min("totalFare")).first().get(0)
+  val maxTotalFare = df.select(max("totalFare")).first().get(0)
+  val q1q3 = df.stat.approxQuantile("totalFare", Array(0.25, 0.75), 0.1)
+  val diff = q1q3(1) - q1q3(0)
+  println(s"Q1: ${q1q3(0)}. Q3: ${q1q3(1)} IQR: $diff ")
+  println(s"Filter Min: ${(q1q3(0)  - 1.5*diff)}. Filter max: ${q1q3(1) + 1.5* diff}")
+  println(s"Min: ${minTotalFare} Max: ${maxTotalFare}")
+  val dfFilter = df.filter(col("totalFare") < (q1q3(0)  - 1.5*diff) || col("totalFare") > (q1q3(1) + 1.5* diff)).select("totalFare", "diff_search_flight_date", "totalTravelDistance")
+    dfFilter.orderBy(asc("totalFare")).show(false)
+  println(s"Count outliers: " + dfFilter.count())
 
   spark.stop()
 }

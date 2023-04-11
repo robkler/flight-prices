@@ -188,3 +188,39 @@ Here, we observe a correlation between the ticket price and the timing of purcha
 |----------------------------------------|--------------------------------------|
 |                    -0.05994809852273712| 0.4926157496986357                   |
 
+### Checking for outliers
+
+All the rows have a price sale, so we use the interquartile range to find outlier on the prices so we found the follows values:
+
+Q1 = 187.99
+Q3 = 437.20
+IQR = 249.21
+
+Our definition of outliers includes tickets with an amount less than -185.85 or greater than 811.01, which are not possible values.
+Upon reviewing the data, we observed that some of the tickets for short flights also fall within this range, as shown in the table.
+However, the majority of the outlier tickets are for long flights, but we don't see a great correlation in the how before the flights you buy the ticket.
+
+|totalFare|diff_search_flight_date|totalTravelDistance|
+|---------|-----------------------|-------------------|
+|811.05   |29                     | 2943              |
+|811.05   |37                     | 2106              |
+|811.05   |19                     | 2106              |
+|811.05   |29                     | 2106              |
+|811.05   |38                     | 2943              |
+|811.05   |18                     | 700               |
+|811.05   |18                     | 2106              |
+|811.05   |35                     | 2106              |
+|811.05   |28                     | 2106              |
+|811.05   |21                     | 754               |
+|811.05   |15                     | 754               |
+|811.05   |16                     | 754               |
+|811.05   |6                      | 754               |
+|811.05   |34                     | 2106              |
+|811.05   |14                     | 754               |
+|811.05   |38                     | 2943              |
+|811.05   |60                     | 2886              |
+|811.06   |26                     | 2751              |
+|811.08   |44                     | 3098              |
+|811.08   |46                     | 3098              |
+
+We found 1412909 outliers
