@@ -11,7 +11,6 @@ object main extends App {
     .getOrCreate()
   spark.sparkContext.setLogLevel("ERROR")
 
-
   val df = spark.read.parquet(Schema.parquetPath)
 
   val groupByFlight = df.groupBy("legId", "segmentsEquipmentDescription", "segmentsAirlineName", "segmentsEquipmentDescription", "startingAirport", "dayofweek", "year", "month").agg(
@@ -54,7 +53,7 @@ object main extends App {
   )
   equipamentDescription.orderBy(desc("count")).show(false)
 
-  //aeroportos
+  //airports
   val startingAirport = groupByFlight.groupBy("startingAirport").agg(
     avg("avgTotalFare").as("avgTotalFare"),
     sum("sumTotalFare").as("sumTotalFare"),
@@ -66,14 +65,12 @@ object main extends App {
     sum("duration").as("totalTravelDuration"),
   )
   startingAirport.orderBy(desc("count")).show(false)
-  //ml
 
   val correlations = df.select(corr("totalFare", "diff_search_flight_date"), corr("totalFare", "totalTravelDistance"))
   df.select("totalFare", "diff_search_flight_date").orderBy(desc("totalFare")).show(false)
 
   println("Correlações entre pares de colunas:")
   correlations.show()
-
 
   spark.stop()
 }
