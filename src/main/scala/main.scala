@@ -14,7 +14,7 @@ object main extends App {
 
   val df = spark.read.parquet(Schema.parquetPath)
 
-  val groupByFlight = df.groupBy("legId", "segmentsEquipmentDescription", "segmentsAirlineName", "segmentsEquipmentDescription", "startingAirport", "dayofweek", "year", "month").agg(
+  val groupByFlight = df.groupBy("legId", "segmentsEquipmentDescription", "segmentsAirlineName", "segmentsEquipmentDescription", "startingAirport", "year", "month").agg(
     avg("totalFare").as("avgTotalFare"),
     sum("totalFare").as("sumTotalFare"),
     count("*").as("count"),
@@ -25,7 +25,7 @@ object main extends App {
   )
   groupByFlight.orderBy(desc("count")).show(false)
 
-  // companinhas com mais voos
+  // segmentsAirlineName
   val segmentAirline = groupByFlight.groupBy("segmentsAirlineName", "year", "month").agg(
     avg("avgTotalFare").as("avgTotalFare"),
     sum("sumTotalFare").as("sumTotalFare"),
@@ -38,11 +38,17 @@ object main extends App {
   )
   segmentAirline.orderBy(desc("count")).show(false)
 
-  //--------------------------------------
 
+
+  val searchDayDf = df.groupBy("searchDayOfWeek").agg(count("*").as("count"))
+  val flightDayDf = df.groupBy("flightDayOfWeek").agg(count("*").as("count"))
+  searchDayDf.orderBy(desc("count")).show(false)
+  flightDayDf.orderBy(desc("count")).show(false)
 
   // segmentsEquipmentDescription
-  val equipamentDescription = groupByFlight.groupBy("segmentsEquipmentDescription", "year", "month").agg(
+  val equipamentDescription = groupByFlight.
+    filter(col("segmentsEquipmentDescription").isNotNull && col("segmentsEquipmentDescription") =!= "||" ).
+    groupBy("segmentsEquipmentDescription").agg(
     avg("avgTotalFare").as("avgTotalFare"),
     sum("sumTotalFare").as("sumTotalFare"),
     sum("count").as("count"),

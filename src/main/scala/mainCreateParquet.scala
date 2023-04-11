@@ -38,11 +38,13 @@ object mainCreateParquet extends App {
 
   val extractTimeUDF = udf(extractTime)
 
-  val dfFinal = dfClean.withColumn("year", year(col("flightDate"))).
+  val dfFinal = dfClean.withColumn("flightDayOfWeek", dayofweek(col("flightDate"))).
+    withColumn("searchDayOfWeek", dayofweek(col("searchDate"))).
+    withColumn("year", year(col("flightDate"))).
     withColumn("month", month(col("flightDate"))).
     withColumn("isNonStopInt", when(df("isNonStop") === true, 1).otherwise(0)).
     withColumn("duration", extractTimeUDF($"travelDuration")).
-    withColumn("diff_search_flight_date", datediff($"flightDate", $"searchDate"))
+    withColumn("diffSearchFlightDate", datediff($"flightDate", $"searchDate"))
 
 
   dfFinal.show(5)
