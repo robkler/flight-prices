@@ -24,7 +24,7 @@ object mainCreateParquet extends App {
 
   println(df.count())
 
-  val dfClean = df.drop("elapsedDays", "isBasicEconomy", "isRefundable", "baseFare", "destinationAirport", "fareBasisCode",
+  val dfClean = df.drop("elapsedDays", "isBasicEconomy", "isRefundable", "baseFare", "fareBasisCode",
     "segmentsDepartureTimeEpochSeconds", "segmentsDepartureTimeRaw", "segmentsArrivalTimeEpochSeconds", "segmentsArrivalTimeRaw",
     "segmentsArrivalAirportCode", "segmentsAirlineCode", "segmentsDurationInSeconds", "segmentsDistance", "segmentsCabinCode",
     "segmentsDepartureAirportCode")

@@ -14,18 +14,19 @@ This dataset contains 82,138,753 rows.
 | 2	  | searchDate	                   | The date (YYYY-MM-DD) on which this entry was taken from Expedia.                                                                                                  
 | 3	  | flightDate	                   | The date (YYYY-MM-DD) of the flight.                                                                                                                               
 | 4	  | startingAirport	              | Three-character IATA airport code for the initial location.                                                                                                        
-| 5	  | travelDuration	               | The travel duration in hours and minutes.                                                                                                                          
-| 6	  | isNonStop	                    | Boolean for whether the flight is non-stop.                                                                                                                        
-| 7	  | totalFare	                    | The price of the ticket (in USD) including taxes and other fees.                                                                                                   
-| 8	  | seatsRemaining	               | Integer for the number of seats remaining.                                                                                                                         
-| 9	  | totalTravelDistance	          | The total travel distance in miles. This data is sometimes missing.                                                                                                
-| 10	 | segmentsAirlineName	          | String containing the name of the airline that services each leg of the trip. The entries for each of the legs are separated by '                                  ||'.                                                                                                                        
-| 11	 | segmentsEquipmentDescription	 | String containing the type of airplane used for each leg of the trip (e.g. "Airbus A321" or "Boeing 737-800"). The entries for each of the legs are separated by ' ||'.                                                                                                                        
-| 12	 | year	                         | The year from the flightDate                                                                                                                                       
-| 13	 | month	                        | The month from the flightDate                                                                                                                                      
-| 14	 | isNonStopInt	                 | It is one when  isNonStop is true, and zero when is false                                                                                                          
-| 15	 | duration	                     | The travel duration in minutes                                                                                                                                     
-| 16	 | diff_search_flight_date	      | The diff between the flightDate and searchDate in days                                                                                                             
+| 5	  | destinationAirport	           | Three-character IATA airport code for the arrival location.                                                                                                        
+| 6	  | travelDuration	               | The travel duration in hours and minutes.                                                                                                                          
+| 7	  | isNonStop	                    | Boolean for whether the flight is non-stop.                                                                                                                        
+| 8	  | totalFare	                    | The price of the ticket (in USD) including taxes and other fees.                                                                                                   
+| 9	  | seatsRemaining	               | Integer for the number of seats remaining.                                                                                                                         
+| 10	 | totalTravelDistance	          | The total travel distance in miles. This data is sometimes missing.                                                                                                
+| 11	 | segmentsAirlineName	          | String containing the name of the airline that services each leg of the trip. The entries for each of the legs are separated by '                                  ||'.                                                                                                                        
+| 12	 | segmentsEquipmentDescription	 | String containing the type of airplane used for each leg of the trip (e.g. "Airbus A321" or "Boeing 737-800"). The entries for each of the legs are separated by ' ||'.                                                                                                                        
+| 13	 | year	                         | The year from the flightDate                                                                                                                                       
+| 14	 | month	                        | The month from the flightDate                                                                                                                                      
+| 15	 | isNonStopInt	                 | It is one when  isNonStop is true, and zero when is false                                                                                                          
+| 16	 | duration	                     | The travel duration in minutes                                                                                                                                     
+| 17	 | diffSearchFlightDate	         | The diff between the flightDate and searchDate in days                                                                                                             
 
 ## Reading csv and create parquet file
 
@@ -118,8 +119,10 @@ average ticket price and a slightly lower number of free seats.
 
 ## 2 : We conducted a similar search to find the airplane model.
 
-Here, we observe a behavior reminiscent of what we saw with the airlines. The aircraft with the most flights did not necessarily bring in the highest sales value. This can be attributed to the average sales ticket,
-which tends to be higher for longer-distance trips. As such, the revenue generated by a flight is not only dependent on its frequency but also on the distance traveled and the corresponding ticket prices.
+Here, we observe a behavior reminiscent of what we saw with the airlines. The aircraft with the most flights did not
+necessarily bring in the highest sales value. This can be attributed to the average sales ticket,
+which tends to be higher for longer-distance trips. As such, the revenue generated by a flight is not only dependent on
+its frequency but also on the distance traveled and the corresponding ticket prices.
 
 | segmentsEquipmentDescription    | avgTotalFare       | sumTotalFare         | count   | avgSeatsRemaining  | avgTotalTravelDistance | TotalTravelDistance | avgTravelDuration  | totalTravelDuration |
 |---------------------------------|--------------------|----------------------|---------|--------------------|------------------------|---------------------|--------------------|---------------------|
@@ -242,3 +245,57 @@ before the flights you buy the ticket.
 | 811.08    | 46                      | 3098                |
 
 We found 1412909 outliers
+
+# Machine learning
+
+We developed a Random Forest model to predict ticket prices based on four inputs:
+
+- startingAirport
+- destinationAirport
+- diffSearchFlightDate
+- totalTravelDistance
+
+As the startingAirport and destinationAirport inputs are categorical (string) data, we used one-hot encoding to prepare
+the data for the model. The target variable for the model was the total price of the ticket.
+
+After training and testing the model, we achieved an root mean square error of 169 in predicting ticket prices.
+
+```scala
+  val dfClean = df.filter(col("startingAirport").isNotNull)
+  .filter(col("destinationAirport").isNotNull)
+  .filter(col("diffSearchFlightDate").isNotNull)
+  .filter(col("totalTravelDistance").isNotNull)
+
+val indexer = new StringIndexer().setInputCols(Array("startingAirport", "destinationAirport")).
+  setOutputCols(Array("indexed_startingAirport", "indexed_destinationAirport"))
+val indexed = indexer.fit(dfClean).transform(dfClean)
+
+
+val encoder = new OneHotEncoder().setInputCols(Array("indexed_startingAirport", "indexed_destinationAirport")).
+  setOutputCols(Array("encoded_startingAirport", "encoded_destinationAirport"))
+val encoded = encoder.fit(indexed).transform(indexed)
+
+val assembler = new VectorAssembler()
+  .setInputCols(Array("encoded_startingAirport", "encoded_destinationAirport", "diffSearchFlightDate", "totalTravelDistance"))
+  .setOutputCol("features")
+val featureDf = assembler.transform(encoded)
+
+val modelRF = new RandomForestRegressor()
+  .setLabelCol("totalFare")
+  .setFeaturesCol("features")
+  .setNumTrees(100)
+
+val Array(trainning, test) = featureDf.randomSplit(Array(0.7, 0.3))
+
+val trainedModel = modelRF.fit(trainning)
+
+val prediction = trainedModel.transform(test)
+
+val evaluation = new RegressionEvaluator()
+  .setLabelCol("totalFare")
+  .setPredictionCol("prediction")
+  .setMetricName("rmse")
+
+val rmse = evaluation.evaluate(prediction)
+println(s"RMSE: $rmse")
+```
